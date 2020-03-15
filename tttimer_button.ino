@@ -17,6 +17,10 @@ unsigned long time_milli_start = 0;
 unsigned long time_milli_end = 0;
 unsigned long alarm_start_time = 0;
 
+// buzzer_state: ブザーが鳴っているか，鳴っているならブザーがどのパターンか
+typedef enum { Silent, Alarm } BuzzerState;
+BuzzerState buzzer_state;
+
 // 全てのDIG(桁)をクリア
 void clearDigit(){
   for(int i = 0; i < 4; i++){
@@ -33,6 +37,35 @@ void clearSegment(){
   digitalWrite(f,HIGH);
   digitalWrite(g,HIGH);
   digitalWrite(dp,HIGH);
+}
+
+/**
+ * buzzer
+ * 
+ * Parameters
+ * ----------
+ * on_time : int
+ *     繰り返し1回で音を鳴らす時間 [m sec]
+ * off_time : int
+ *     繰り返し1回で音を消す時間 [m sec]
+ * repeats : int
+ *     繰り返し回数
+ * elapsed_time : int 
+ *     鳴り始めからの経過時間 [m sec]
+ * Returns
+ * -------
+ * int
+ *     残り繰り返し回数（今鳴っている分は含まない）→ 0になったら鳴り終わり
+ */
+int buzzer(int on_time, int off_time, int repeats, int elapsed_time) {
+  int now_repeats = elapsed_time / (on_time + off_time);
+  int remainder = elapsed_time % (on_time + off_time);
+  if (remainder < on_time) {
+    alarm_on();
+  } else {
+    alarm_off();
+  }
+  return repeats - now_repeats;
 }
 
 void setup() {
@@ -59,6 +92,9 @@ void setup() {
 
   time_milli_start = millis();
   time_milli_end = millis();
+
+  // ブザーの状態
+  buzzer_state = Silent;
 }
 
 void show_num(int* n) {
@@ -127,19 +163,23 @@ void loop() {
 
 //300秒ごとに，200ミリ秒鳴って50ミリ秒無音を1秒間
   if((delta % 300 == 0) && (delta > 1)){
-    if (alarm_start_time == 0){
-      alarm_on();
+    if (buzzer_state == Silent){
+      buzzer_state = Alarm;
       alarm_start_time = time_milli_end;
-    }else{
-      int alarm_elapsed_time = time_milli_end - alarm_start_time;
-      if (alarm_elapsed_time < 200)alarm_on();
-      else if (alarm_elapsed_time >= 200 && alarm_elapsed_time < 250)alarm_off();
-      else if (alarm_elapsed_time >= 250 && alarm_elapsed_time < 450)alarm_on();
-      else if (alarm_elapsed_time >= 450 && alarm_elapsed_time < 500)alarm_off();
-      else if (alarm_elapsed_time >= 500 && alarm_elapsed_time < 700)alarm_on();
-      else if (alarm_elapsed_time >= 700 && alarm_elapsed_time < 750)alarm_off();
-      else if (alarm_elapsed_time >= 750 && alarm_elapsed_time < 950)alarm_on();
-      else if (alarm_elapsed_time >= 950 && alarm_elapsed_time < 1000)alarm_off();
     }
-  }else if (delta % 300 == 1)alarm_start_time = 0;
+  } else if (delta % 300 == 1) alarm_start_time = 0; // これはなんだろう？
+
+  // Silentじゃなければ鳴らす
+  int remainder = 0;
+  switch (buzzer_state) {
+    case Silent:
+      break;
+    case Alarm:
+      remainder = buzzer(200, 50, 4, time_milli_end - alarm_start_time);
+      break;
+  }
+  // 終わったら待機
+  if (remainder == 0) {
+    buzzer_state = Silent;
+  }
 }
