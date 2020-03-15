@@ -37,9 +37,19 @@ void clearSegment(){
 
 void setup() {
   // 全てのピンを出力にする
-  for(int i =0; i < 13; i++){
-    pinMode((i+1),OUTPUT);
-  }
+  pinMode(dig[0], OUTPUT)
+  pinMode(dig[1], OUTPUT)
+  pinMode(dig[2], OUTPUT) 
+  pinMode(dig[3], OUTPUT)
+  pinMode(a, OUTPUT)
+  pinMode(b, OUTPUT)
+  pinMode(c, OUTPUT)
+  pinMode(d, OUTPUT)
+  pinMode(e, OUTPUT)
+  pinMode(f, OUTPUT)
+  pinMode(g, OUTPUT)
+  pinMode(dp, OUTPUT)
+  pinMode(spk, OUTPUT)
 
   // 全てのDIG(桁)をクリア
   clearDigit();
