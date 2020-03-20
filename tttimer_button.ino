@@ -103,12 +103,23 @@ void show_num(int* n) {
   }
 }
 
-void alarm_on(){
-  digitalWrite(spk,HIGH);
-}
 
-void alarm_off(){
-  digitalWrite(spk,LOW);
+
+//on_timeミリ秒鳴らしてoff_timeミリ秒無音，これをrepeat回繰り返す
+//alarm_start_timeは0以外の時に動作するようになっており，alarm()は毎ループ呼んでおいて，alarm_start_timeに入れる値で制御する
+void alarm(int on_time,int off_time, int repeat, unsigned long alarm_start_time){
+  int alarm_elapsed_time = millis() - alarm_start_time;
+  for (int i=0,i<repeat,i++){
+    if(alarm_elapsed_time < (on_time+off_time) * i + on_time){
+      digitalWrite(spk,HIGH);
+      break;
+    }
+    else if(alarm_elapsed_time < (on_time+off_time)*(i+1)){
+      digitalWrite(spk,LOW);
+      break;
+    }
+  }
+  if (alarm_elapsed_time >= (on_time+off_time)*repeat)alarm_start_time = 0;
 }
 
 
@@ -125,21 +136,13 @@ void loop() {
   num[3] = now_sec % 10;
   show_num(num);
 
-//300秒ごとに，200ミリ秒鳴って50ミリ秒無音を1秒間
-  if((delta % 300 == 0) && (delta > 1)){
+
+  if ((delta % 300 == 0) && (delta > 1)){
     if (alarm_start_time == 0){
-      alarm_on();
       alarm_start_time = time_milli_end;
-    }else{
-      int alarm_elapsed_time = time_milli_end - alarm_start_time;
-      if (alarm_elapsed_time < 200)alarm_on();
-      else if (alarm_elapsed_time >= 200 && alarm_elapsed_time < 250)alarm_off();
-      else if (alarm_elapsed_time >= 250 && alarm_elapsed_time < 450)alarm_on();
-      else if (alarm_elapsed_time >= 450 && alarm_elapsed_time < 500)alarm_off();
-      else if (alarm_elapsed_time >= 500 && alarm_elapsed_time < 700)alarm_on();
-      else if (alarm_elapsed_time >= 700 && alarm_elapsed_time < 750)alarm_off();
-      else if (alarm_elapsed_time >= 750 && alarm_elapsed_time < 950)alarm_on();
-      else if (alarm_elapsed_time >= 950 && alarm_elapsed_time < 1000)alarm_off();
     }
-  }else if (delta % 300 == 1)alarm_start_time = 0;
+  }
+
+  alarm(200,50,4,alarm_start_time);
+
 }
