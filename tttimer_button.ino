@@ -108,18 +108,20 @@ void show_num(int* n) {
 //on_timeミリ秒鳴らしてoff_timeミリ秒無音，これをrepeat回繰り返す
 //alarm_start_timeは0以外の時に動作するようになっており，alarm()は毎ループ呼んでおいて，alarm_start_timeに入れる値で制御する
 void alarm(int on_time,int off_time, int repeat, unsigned long alarm_start_time){
-  int alarm_elapsed_time = millis() - alarm_start_time;
-  for (int i=0,i<repeat,i++){
-    if(alarm_elapsed_time < (on_time+off_time) * i + on_time){
-      digitalWrite(spk,HIGH);
-      break;
+  if(alarm_start_time > 0){
+    int alarm_elapsed_time = millis() - alarm_start_time;
+    for (int i=0,i<repeat,i++){
+      if(alarm_elapsed_time < (on_time+off_time) * i + on_time){
+        digitalWrite(spk,HIGH);
+        break;
+      }
+      else if(alarm_elapsed_time < (on_time+off_time)*(i+1)){
+        digitalWrite(spk,LOW);
+        break;
+      }
     }
-    else if(alarm_elapsed_time < (on_time+off_time)*(i+1)){
-      digitalWrite(spk,LOW);
-      break;
-    }
+    if (alarm_elapsed_time >= (on_time+off_time)*repeat)alarm_start_time = 0;
   }
-  if (alarm_elapsed_time >= (on_time+off_time)*repeat)alarm_start_time = 0;
 }
 
 
