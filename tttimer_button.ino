@@ -4,21 +4,22 @@
 #define STOP 2
 #define PUSH_SHORT 100
 
-const int dig[4] = {2, 5, 6, 14};
+const int dig[4] = {7, 6, 5, 4};
 
-const int a = 3;
-const int b = 7;
-const int c = 16;
-const int d = 18;
-const int e = 19;
-const int f = 4;
-const int g = 15;
-const int dp = 17;
+const int a = 1;
+const int b = 3;
+const int c = A1;
+const int d = A3;
+const int e = A4;
+const int f = 2;
+const int g = A0;
+const int dp = A2;
 
 const int spk = 10;
 
 const int sw_one = 8;
 const int sw_two = 9;
+
 
 unsigned long time_milli_start = 0; //カウントが始まった時刻
 unsigned long time_milli_now = 0; //表示する時刻
@@ -118,6 +119,9 @@ void show_num(int* n) {
        case 9:
          SET(a); SET(b); SET(c); SET(d); SET(f); SET(g);
          break;
+       default:
+         SET(a);
+         break;
      }
      if (i == 1) SET(dp);
      delayMicroseconds(50);
@@ -131,7 +135,7 @@ void show_num(int* n) {
 void alarm(int on_time,int off_time, int repeat, unsigned long alarm_start_time){
   if(alarm_start_time > 0){
     int alarm_elapsed_time = millis() - alarm_start_time;
-    for (int i=0,i<repeat,i++){
+    for (int i=0; i<repeat; i++){
       if(alarm_elapsed_time < (on_time+off_time) * i + on_time){
         digitalWrite(spk,HIGH);
         break;
@@ -148,9 +152,12 @@ void alarm(int on_time,int off_time, int repeat, unsigned long alarm_start_time)
 
 
 void loop() {
+  int num[4] = {};
+  int delta = 0;
+  int now_sec = 0;
+  int now_min = 0;
   switch(state){
     case READY: //READYのとき，表示は全て０
-      int num[4] = {};
       show_num(num);
 
       //スイッチ１(start/stop)が押されたとき，その時刻をtime_milli_startにしてCOUNTへ
@@ -167,10 +174,10 @@ void loop() {
 
     case COUNT: //COUNTのとき，カウントアップ
       time_milli_now = millis() - time_milli_start + time_milli_stop;
-      int delta = time_milli_now / 1000; //second
-      int now_sec = delta % 60;
-      int now_min = delta / 60;
-      int num[4];
+      delta = time_milli_now / 1000; //second
+      now_sec = delta % 60;
+      now_min = delta / 60;
+
       num[0] = now_min / 10;
       num[1] = now_min % 10;
       num[2] = now_sec / 10;
@@ -190,11 +197,10 @@ void loop() {
       break;
 
     case STOP: //STOPのとき，カウント停止．time_milli_stopを表示
-      int delta = time_milli_stop / 1000;
-      int now_sec = delta % 60;
-      int now_min = delta / 60;
+      delta = time_milli_stop / 1000;
+      now_sec = delta % 60;
+      now_min = delta / 60;
 
-      int num[4];
       num[0] = now_min / 10;
       num[1] = now_min % 10;
       num[2] = now_sec / 10;
@@ -224,33 +230,5 @@ void loop() {
       }
 
       break;
-
   }
-
-
-/*
-
-  time_milli_end = millis();
-  int delta = (time_milli_end - time_milli_start) / 1000; // second
-  int now_sec = delta % 60;
-  int now_min = delta / 60;
-
-  int num[4];
-  num[0] = now_min / 10;
-  num[1] = now_min % 10;
-  num[2] = now_sec / 10;
-  num[3] = now_sec % 10;
-  show_num(num);
-
-
-  if ((delta % 300 == 0) && (delta > 1)){
-    if (alarm_start_time == 0){
-      alarm_start_time = time_milli_end;
-    }
-  }
-
-  alarm(200,50,4,alarm_start_time);
-
-*/
-
 }
