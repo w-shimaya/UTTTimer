@@ -114,6 +114,7 @@ void setup() {
 
   // ブザーの状態
   buzzer_state = Silent;
+  prev_buz_state = Silent;
   time_milli_now = millis();
   time_milli_stop = 0;
 
@@ -161,7 +162,7 @@ void show_num(int* n) {
          break;
      }
      if (i == 1) SET(dp);
-     delayMicroseconds(50);
+     delayMicroseconds(60);
   }
 }
 
@@ -205,12 +206,16 @@ void loop() {
       }
       if(count_low_one == PUSH_SHORT){
         time_milli_start = millis();
+        prev_buz_state = buzzer_state;
+        prev_alarm_start_time = alarm_start_time;
+        buzzer_state = Button;
+        alarm_start_time = millis();
         state = COUNT;
       }
       break;
 
     case COUNT: //COUNTのとき，カウントアップ
-      time_milli_now = millis() - time_milli_start + time_milli_stop;
+      time_milli_now = millis() - time_milli_start + time_milli_stop; // display
       delta = time_milli_now / 1000; //second
       now_sec = delta % 60;
       now_min = delta / 60;
@@ -229,6 +234,10 @@ void loop() {
       }
       if(count_low_one == PUSH_SHORT){
         time_milli_stop = time_milli_now;
+        prev_buz_state = buzzer_state;
+        prev_alarm_start_time = alarm_start_time;
+        buzzer_state = Button;
+        alarm_start_time = millis();
         state = STOP;
       }
       break;
@@ -253,7 +262,9 @@ void loop() {
       if(count_low_one == PUSH_SHORT){
         time_milli_start = millis();
         prev_buz_state = buzzer_state;
+        prev_alarm_start_time = alarm_start_time;
         buzzer_state = Button;
+        alarm_start_time = millis();
         state = COUNT;
       }
 
@@ -266,61 +277,75 @@ void loop() {
       if(count_low_two == PUSH_SHORT){
         time_milli_stop = 0;
         state = READY;
+        prev_buz_state = buzzer_state;
+        prev_alarm_start_time = alarm_start_time;
+        buzzer_state = Button;
+        alarm_start_time = millis();
       }
 
       break;
   }
   
-  /*
-   * 1200n -> 20
-   * 600n -> 10
-   * 300n -> 5
-   */
-  if (delta > 1) {
-    if (delta % 1200 == 0) {
-      if (buzzer_state == Silent) {
-        buzzer_state = Twenty;
-        alarm_start_time = time_milli_now;
-      } else if (buzzer_state == Button) {
-        prev_buz_state = Twenty;
-        prev_alarm_start_time = time_milli_now;
-      }
-    } else if (delta % 600 == 0) {
-      if (buzzer_state == Silent) {
-        buzzer_state = Ten;
-        alarm_start_time = time_milli_now;
-      } else if (buzzer_state == Button) {
-        prev_buz_state = Ten;
-        prev_alarm_start_time = time_milli_now;
-      }
-    } else if (delta % 300 == 0) {
-      if (buzzer_state == Silent) {
-        buzzer_state = Five;
-        alarm_start_time = time_milli_now;
-      } else if (buzzer_state == Button) {
-        prev_buz_state = Five;
-        prev_alarm_start_time = time_milli_now;
-      }
-    }
-  }
-
   // Silentじゃなければ鳴らす
   int remainder = 0;
-  switch (buzzer_state) {
-    case Silent:
-      break;
-    case Five:
-      remainder = buzzer(50, 50, 2, time_milli_now - alarm_start_time);
-      break;
-    case Ten:
-      remainder = buzzer(50, 50, 3, time_milli_now - alarm_start_time);
-      break;
-    case Twenty:
-      remainder = buzzer(100, 50, 6, time_milli_now - alarm_start_time);
-    case Button:
-      remainder = buzzer(50, 50, 1, time_milli_now - alarm_start_time);
-      break;
+  if (state == COUNT) {
+    /*
+     * 1200n -> 20
+     * 600n -> 10
+     * 300n -> 5
+     */
+    if (time_milli_now > 1) {
+      if (time_milli_now % 120000 == 0) {
+        if (buzzer_state == Silent) {
+          buzzer_state = Twenty;
+          alarm_start_time = millis();
+        } else if (buzzer_state == Button) {
+          prev_buz_state = Twenty;
+          prev_alarm_start_time = millis();
+        }
+      } else if (time_milli_now % 60000 == 0) {
+        if (buzzer_state == Silent) {
+          buzzer_state = Ten;
+          alarm_start_time = millis();
+        } else if (buzzer_state == Button) {
+          prev_buz_state = Ten;
+          prev_alarm_start_time = millis();
+        }
+      } else if (time_milli_now % 30000 == 0) {
+        if (buzzer_state == Silent) {
+          buzzer_state = Five;
+          alarm_start_time = millis();
+        } else if (buzzer_state == Button) {
+          prev_buz_state = Five;
+          prev_alarm_start_time = millis();
+        }
+      }
+    }
+    
+    switch (buzzer_state) {
+      case Silent:
+        break;
+      case Five:
+        remainder = buzzer(200, 200, 2, millis() - alarm_start_time);
+        break;
+      case Ten:
+        remainder = buzzer(200, 200, 3, millis() - alarm_start_time);
+        break;
+      case Twenty:
+        remainder = buzzer(200, 200, 6, millis() - alarm_start_time);
+        break;
+      case Button:
+        remainder = buzzer(200, 200, 1, millis() - alarm_start_time);
+        break;
+    }
+  } else {
+    if (buzzer_state != Button) {
+      buzzer_state = Silent;
+    } else {
+      remainder = buzzer(200, 200, 1, millis() - alarm_start_time);
+    }
   }
+  
   // 終わったら待機
   if (remainder == 0) {
     digitalWrite(spk, LOW);
@@ -330,5 +355,10 @@ void loop() {
     } else {
       buzzer_state = Silent;
     }
+  }
+
+  if (delta >= 100 * 60) {
+    time_milli_start = millis();
+    time_milli_stop = 0;
   }
 }
