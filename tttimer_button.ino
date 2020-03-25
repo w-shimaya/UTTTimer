@@ -26,6 +26,10 @@ unsigned long time_milli_now = 0; //表示する時刻
 unsigned long time_milli_stop = 0; //停止時刻
 unsigned long alarm_start_time = 0;
 
+// buzzer_state: ブザーが鳴っているか，鳴っているならブザーがどのパターンか
+typedef enum { Silent, Alarm } BuzzerState;
+BuzzerState buzzer_state;
+
 int state = 0; //今の状態
 
 int count_low_one = 0; //チャタリングに使うカウント
@@ -47,6 +51,35 @@ void clearSegment(){
   digitalWrite(f,HIGH);
   digitalWrite(g,HIGH);
   digitalWrite(dp,HIGH);
+}
+
+/**
+ * buzzer
+ * 
+ * Parameters
+ * ----------
+ * on_time : int
+ *     繰り返し1回で音を鳴らす時間 [m sec]
+ * off_time : int
+ *     繰り返し1回で音を消す時間 [m sec]
+ * repeats : int
+ *     繰り返し回数
+ * elapsed_time : int 
+ *     鳴り始めからの経過時間 [m sec]
+ * Returns
+ * -------
+ * int
+ *     残り繰り返し回数（今鳴っている分は含まない）→ 0になったら鳴り終わり
+ */
+int buzzer(int on_time, int off_time, int repeats, int elapsed_time) {
+  int now_repeats = elapsed_time / (on_time + off_time);
+  int remainder = elapsed_time % (on_time + off_time);
+  if (remainder < on_time) {
+    alarm_on();
+  } else {
+    alarm_off();
+  }
+  return repeats - now_repeats;
 }
 
 void setup() {
@@ -76,11 +109,13 @@ void setup() {
   clearSegment();
 
   time_milli_start = millis();
+
+  // ブザーの状態
+  buzzer_state = Silent;
   time_milli_now = millis();
   time_milli_stop = 0;
 
   state = READY;
-
 }
 
 void show_num(int* n) {
@@ -230,5 +265,27 @@ void loop() {
       }
 
       break;
+  }
+  
+  //300秒ごとに，200ミリ秒鳴って50ミリ秒無音を1秒間
+  if((delta % 300 == 0) && (delta > 1)){
+    if (buzzer_state == Silent){
+      buzzer_state = Alarm;
+      alarm_start_time = time_milli_now;
+    }
+  } else if (delta % 300 == 1) alarm_start_time = 0; // これはなんだろう？
+
+  // Silentじゃなければ鳴らす
+  int remainder = 0;
+  switch (buzzer_state) {
+    case Silent:
+      break;
+    case Alarm:
+      remainder = buzzer(200, 50, 4, time_milli_now - alarm_start_time);
+      break;
+  }
+  // 終わったら待機
+  if (remainder == 0) {
+    buzzer_state = Silent;
   }
 }
