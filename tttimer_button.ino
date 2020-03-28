@@ -6,13 +6,13 @@
 
 const int dig[4] = {7, 6, 5, 4};
 
-const int a = 1;
-const int b = 3;
-const int c = A1;
-const int d = A3;
-const int e = A4;
+const int a = 3;
+const int b = 1;
+const int c = A3;
+const int d = A1;
+const int e = A0;
 const int f = 2;
-const int g = A0;
+const int g = A4;
 const int dp = A2;
 
 const int spk = 10;
