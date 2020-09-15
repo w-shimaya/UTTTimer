@@ -76,6 +76,11 @@ void clearSegment(){
 int buzzer(int on_time, int off_time, int repeats, int elapsed_time) {
   int now_repeats = elapsed_time / (on_time + off_time);
   int remainder = elapsed_time % (on_time + off_time);
+  // repeatを超える回数は鳴らさない
+  if (now_repeats > repeats) {
+    return 0;
+  }
+
   if (remainder < on_time) {
     digitalWrite(spk, HIGH);
   } else {
@@ -118,11 +123,13 @@ void setup() {
   time_milli_now = millis();
   time_milli_stop = 0;
 
+  // タイマーの状態
   state = READY;
 }
 
 void show_num(int* n) {
   // nは各桁の数字が要素の配列（の先頭ポインタ）
+  // ディスプレイにnで指定される数字を表示
   for (int i = 0; i < 4; ++i) {
     clearSegment(); clearDigit();
     digitalWrite(dig[i], HIGH);
