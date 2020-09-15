@@ -1,11 +1,10 @@
-#include <stack>
-
 #define SET(n) digitalWrite((n), LOW)
 #define READY 0
 #define COUNT 1
 #define STOP 2
 #define PUSH_SHORT 100
 
+// ピン配置
 const int dig[4] = {7, 6, 5, 4};
 
 const int a = 3;
@@ -21,17 +20,17 @@ const int spk = 10;
 
 const int sw_one = 8;
 const int sw_two = 9;
-
+// ここまで
 
 unsigned long time_milli_start = 0; //カウントが始まった時刻
 unsigned long time_milli_now = 0; //表示する時刻
 unsigned long time_milli_stop = 0; //停止時刻
-std::stack<unsigned long> alarm_start_time; // ブザーの開始時間
+stack<unsigned long> alarm_start_time; // ブザーの開始時間
 
 // buzzer_state: ブザーがどのパターンか．
-typedef enum { Silent, Five, Ten, Twenty, Button } BuzzerState;
+typedef enum { Five, Ten, Twenty, Button } BuzzerState;
 // 空なら無音
-std::stack<BuzzerState> buzzer_state;
+stack<BuzzerState> buzzer_state;
 
 int state; // タイマーの状態
 
@@ -120,8 +119,6 @@ void setup() {
   time_milli_start = millis();
 
   // ブザーの状態
-  buzzer_state = Silent;
-  prev_buz_state = Silent;
   time_milli_now = millis();
   time_milli_stop = 0;
 
@@ -267,7 +264,7 @@ void loop() {
       if(count_low_one == PUSH_SHORT){
         time_milli_start = millis();
         buzzer_state.push(Button);
-        alarm_start_time(millis());
+        alarm_start_time.push(millis());
         state = COUNT;
       }
 
