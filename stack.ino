@@ -18,6 +18,7 @@ public:
     if (size >= STACK_MAX_SIZE) {
         return;
     }
+    container[size++] = x;
   }
 
   T top() {
