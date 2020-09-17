@@ -4,6 +4,12 @@
 #define STOP 2
 #define PUSH_SHORT 100
 
+// タイマーを鳴らす時間 [msec]
+// Arduino Uno のint型は2byte, long型は4byte
+#define QUARTER  300000UL
+#define HALF     600000UL
+#define FULL    1200000UL
+
 #define STACK_MAX_SIZE 10
 
 template <typename T>
@@ -320,19 +326,15 @@ void loop() {
  
   // 時間お知らせブザー
   if (state == COUNT) {
-    /*
-     * 1200n -> 20
-     * 600n -> 10
-     * 300n -> 5
-     */
+    // 起動直後は無視
     if (time_milli_now > 1) {
-      if (time_milli_now % 120000 == 0) {
+      if (time_milli_now % FULL == 0) {
         buzzer_state.push(Twenty);
         alarm_start_time.push(millis());
-      } else if (time_milli_now % 60000 == 0) {
+      } else if (time_milli_now % HALF == 0) {
         buzzer_state.push(Ten);
         alarm_start_time.push(millis());
-      } else if (time_milli_now % 30000 == 0) {
+      } else if (time_milli_now % QUARTER == 0) {
         buzzer_state.push(Five);
         alarm_start_time.push(millis());
       }
