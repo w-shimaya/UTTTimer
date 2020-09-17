@@ -4,30 +4,71 @@
 #define STOP 2
 #define PUSH_SHORT 100
 
-const int dig[4] = {2, 5, 6, 14};
+#define STACK_MAX_SIZE 10
+
+template <typename T>
+class stack {
+private:
+  T container[STACK_MAX_SIZE];
+  int size;
+public:
+  stack() {
+    size = 0;
+  }
+
+  bool empty() {
+    return size == 0;
+  }
+
+  void push(const T &x) {
+    if (size >= STACK_MAX_SIZE) {
+        return;
+    }
+    container[size++] = x;
+  }
+
+  T top() {
+    return container[size - 1];
+  }
+
+  void pop() {
+    if (size > 0) {
+      size--;
+    }
+  }
+};
+
+// ピン配置
+const int dig[4] = {7, 6, 5, 4};
 
 const int a = 3;
-const int b = 7;
-const int c = 16;
-const int d = 18;
-const int e = 19;
-const int f = 4;
-const int g = 15;
-const int dp = 17;
+const int b = 1;
+const int c = A3;
+const int d = A1;
+const int e = A0;
+const int f = 2;
+const int g = A4;
+const int dp = A2;
 
 const int spk = 10;
 
 const int sw_one = 8;
 const int sw_two = 9;
+// ここまで
 
 unsigned long time_milli_start = 0; //カウントが始まった時刻
 unsigned long time_milli_now = 0; //表示する時刻
 unsigned long time_milli_stop = 0; //停止時刻
-unsigned long alarm_start_time = 0;
+stack<unsigned long> alarm_start_time; // ブザーの開始時間
 
-int state = 0; //今の状態
+// buzzer_state: ブザーがどのパターンか．
+typedef enum { Five, Ten, Twenty, Button } BuzzerState;
+// 空なら無音
+stack<BuzzerState> buzzer_state;
 
-int count_low_one = 0; //チャタリングに使うカウント
+int state; // タイマーの状態
+
+int count_low_one = 0; // チャタリングに使うカウント
 int count_low_two = 0;
 
 // 全てのDIG(桁)をクリア
@@ -46,6 +87,41 @@ void clearSegment(){
   digitalWrite(f,HIGH);
   digitalWrite(g,HIGH);
   digitalWrite(dp,HIGH);
+}
+
+/**
+ * buzzer
+ * 
+ * Parameters
+ * ----------
+ * on_time : int
+ *     繰り返し1回で音を鳴らす時間 [m sec]
+ * off_time : int
+ *     繰り返し1回で音を消す時間 [m sec]
+ * repeats : int
+ *     繰り返し回数
+ * elapsed_time : int 
+ *     鳴り始めからの経過時間 [m sec]
+ * Returns
+ * -------
+ * int
+ *     残り繰り返し回数（今鳴っている分は含まない）→ 0になったら鳴り終わり
+ */
+int buzzer(int on_time, int off_time, int repeats, int elapsed_time) {
+  int now_repeats = elapsed_time / (on_time + off_time);
+  int remainder = elapsed_time % (on_time + off_time);
+  // repeatを超える回数は鳴らさない
+  if (now_repeats > repeats) {
+    digitalWrite(spk, LOW);
+    return 0;
+  }
+
+  if (remainder < on_time) {
+    digitalWrite(spk, HIGH);
+  } else {
+    digitalWrite(spk, LOW);
+  }
+  return repeats - now_repeats;
 }
 
 void setup() {
@@ -75,15 +151,18 @@ void setup() {
   clearSegment();
 
   time_milli_start = millis();
+
+  // ブザーの状態
   time_milli_now = millis();
   time_milli_stop = 0;
 
+  // タイマーの状態
   state = READY;
-
 }
 
 void show_num(int* n) {
   // nは各桁の数字が要素の配列（の先頭ポインタ）
+  // ディスプレイにnで指定される数字を表示
   for (int i = 0; i < 4; ++i) {
     clearSegment(); clearDigit();
     digitalWrite(dig[i], HIGH);
@@ -118,9 +197,12 @@ void show_num(int* n) {
        case 9:
          SET(a); SET(b); SET(c); SET(d); SET(f); SET(g);
          break;
+       default:
+         SET(a);
+         break;
      }
      if (i == 1) SET(dp);
-     delayMicroseconds(50);
+     delayMicroseconds(60);
   }
 }
 
@@ -131,7 +213,7 @@ void show_num(int* n) {
 void alarm(int on_time,int off_time, int repeat, unsigned long alarm_start_time){
   if(alarm_start_time > 0){
     int alarm_elapsed_time = millis() - alarm_start_time;
-    for (int i=0,i<repeat,i++){
+    for (int i=0; i<repeat; i++){
       if(alarm_elapsed_time < (on_time+off_time) * i + on_time){
         digitalWrite(spk,HIGH);
         break;
@@ -148,9 +230,12 @@ void alarm(int on_time,int off_time, int repeat, unsigned long alarm_start_time)
 
 
 void loop() {
+  int num[4] = {};
+  int delta = 0;
+  int now_sec = 0;
+  int now_min = 0;
   switch(state){
     case READY: //READYのとき，表示は全て０
-      int num[4] = {};
       show_num(num);
 
       //スイッチ１(start/stop)が押されたとき，その時刻をtime_milli_startにしてCOUNTへ
@@ -161,16 +246,18 @@ void loop() {
       }
       if(count_low_one == PUSH_SHORT){
         time_milli_start = millis();
+        buzzer_state.push(Button);
+        alarm_start_time.push(millis());
         state = COUNT;
       }
       break;
 
     case COUNT: //COUNTのとき，カウントアップ
-      time_milli_now = millis() - time_milli_start + time_milli_stop;
-      int delta = time_milli_now / 1000; //second
-      int now_sec = delta % 60;
-      int now_min = delta / 60;
-      int num[4];
+      time_milli_now = millis() - time_milli_start + time_milli_stop; // display
+      delta = time_milli_now / 1000; //second
+      now_sec = delta % 60;
+      now_min = delta / 60;
+
       num[0] = now_min / 10;
       num[1] = now_min % 10;
       num[2] = now_sec / 10;
@@ -185,16 +272,17 @@ void loop() {
       }
       if(count_low_one == PUSH_SHORT){
         time_milli_stop = time_milli_now;
+        buzzer_state.push(Button);
+        alarm_start_time.push(millis());
         state = STOP;
       }
       break;
 
     case STOP: //STOPのとき，カウント停止．time_milli_stopを表示
-      int delta = time_milli_stop / 1000;
-      int now_sec = delta % 60;
-      int now_min = delta / 60;
+      delta = time_milli_stop / 1000;
+      now_sec = delta % 60;
+      now_min = delta / 60;
 
-      int num[4];
       num[0] = now_min / 10;
       num[1] = now_min % 10;
       num[2] = now_sec / 10;
@@ -209,6 +297,8 @@ void loop() {
       }
       if(count_low_one == PUSH_SHORT){
         time_milli_start = millis();
+        buzzer_state.push(Button);
+        alarm_start_time.push(millis());
         state = COUNT;
       }
 
@@ -221,36 +311,63 @@ void loop() {
       if(count_low_two == PUSH_SHORT){
         time_milli_stop = 0;
         state = READY;
+        buzzer_state.push(Button);
+        alarm_start_time.push(millis());
       }
 
       break;
-
   }
-
-
-/*
-
-  time_milli_end = millis();
-  int delta = (time_milli_end - time_milli_start) / 1000; // second
-  int now_sec = delta % 60;
-  int now_min = delta / 60;
-
-  int num[4];
-  num[0] = now_min / 10;
-  num[1] = now_min % 10;
-  num[2] = now_sec / 10;
-  num[3] = now_sec % 10;
-  show_num(num);
-
-
-  if ((delta % 300 == 0) && (delta > 1)){
-    if (alarm_start_time == 0){
-      alarm_start_time = time_milli_end;
+ 
+  // 時間お知らせブザー
+  if (state == COUNT) {
+    /*
+     * 1200n -> 20
+     * 600n -> 10
+     * 300n -> 5
+     */
+    if (time_milli_now > 1) {
+      if (time_milli_now % 120000 == 0) {
+        buzzer_state.push(Twenty);
+        alarm_start_time.push(millis());
+      } else if (time_milli_now % 60000 == 0) {
+        buzzer_state.push(Ten);
+        alarm_start_time.push(millis());
+      } else if (time_milli_now % 30000 == 0) {
+        buzzer_state.push(Five);
+        alarm_start_time.push(millis());
+      }
+    }
+  }
+  
+  // 音を鳴らす
+  if (!buzzer_state.empty()) {
+    int remainder = 0;
+    switch (buzzer_state.top()) {
+      case Five:
+        remainder = buzzer(200, 200, 2, millis() - alarm_start_time.top());
+        break;
+      case Ten:
+        remainder = buzzer(200, 200, 3, millis() - alarm_start_time.top());
+        break;
+      case Twenty:
+        remainder = buzzer(200, 200, 6, millis() - alarm_start_time.top());
+        break;
+      case Button:
+        remainder = buzzer(200, 200, 1, millis() - alarm_start_time.top());
+        break;
+    }
+  
+    // 終わったらブザー状態を一つ戻す
+    if (remainder == 0) {
+      digitalWrite(spk, LOW);
+      buzzer_state.pop();
+      alarm_start_time.pop();
     }
   }
 
-  alarm(200,50,4,alarm_start_time);
-
-*/
-
+  // 4桁に収まらなくなったとき（要検討）
+  if (delta >= 100 * 60) {
+    time_milli_start = millis();
+    time_milli_stop = 0;
+  }
 }
